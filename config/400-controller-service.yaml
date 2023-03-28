@@ -13,21 +13,24 @@
 # limitations under the License.
 
 apiVersion: v1
-kind: ServiceAccount
+kind: Service
 metadata:
-  name: tekton-pod-affinity-webhook
-  namespace: tekton-pod-affinity
   labels:
-    app.kubernetes.io/component: webhook
-    app.kubernetes.io/instance: default
-    app.kubernetes.io/part-of: tekton-pod-affinity
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: tekton-pod-affinity-controller
-  namespace: tekton-pod-affinity
-  labels:
+    app.kubernetes.io/name: custom-pod-affinity-controller
     app.kubernetes.io/component: custom-pod-affinity-controller
     app.kubernetes.io/instance: default
-    app.kubernetes.io/part-of: tekton-pod-affinity
+    app.kubernetes.io/part-of: pod-affinity
+    app: custom-pod-affinity-controller
+  name: custom-pod-affinity-controller
+  namespace: tekton-pod-affinity
+spec:
+  ports:
+    - name: http-metrics
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    app.kubernetes.io/name: custom-pod-affinity-controller
+    app.kubernetes.io/component: custom-pod-affinity-controller
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: custom-pod-affinity-controller

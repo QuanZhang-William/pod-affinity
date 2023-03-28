@@ -6,7 +6,6 @@ require knative.dev/pkg v0.0.0-20230320014357-4c84b1b51ee8
 
 require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/gobuffalo/flect v0.2.4 // indirect
 	github.com/google/go-containerregistry v0.14.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

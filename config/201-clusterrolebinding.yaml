@@ -31,3 +31,22 @@ roleRef:
   kind: ClusterRole
   name: tekton-pod-affinity-leader-election
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-pod-affinity-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pod-affinity
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pod-affinity-controller
+    namespace: tekton-pod-affinity
+roleRef:
+  kind: ClusterRole
+  name: tekton-pod-affinity-controller-cluster-access
+  apiGroup: rbac.authorization.k8s.io
+
+  

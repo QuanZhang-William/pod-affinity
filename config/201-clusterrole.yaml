@@ -34,6 +34,26 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  name: tekton-pod-affinity-controller-cluster-access
+  labels:
+    app.kubernetes.io/component: tekton-pod-affinity
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-pod-affinity
+rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "concurrencycontrols"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  # Controller needs cluster access to leases for leader election.
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
   name: tekton-pod-affinity-leader-election
   labels:
     app.kubernetes.io/instance: default

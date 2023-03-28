@@ -23,8 +23,6 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/version: "devel"
     app.kubernetes.io/part-of: tekton-pod-affinity
-    pipeline.tekton.dev/release: "devel"
-    version: "devel"
 spec:
   replicas: 1
   selector:
