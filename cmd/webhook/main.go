@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/QuanZhang-William/pod-affinity/pkg/api/mutatingwebhook"
-	"github.com/QuanZhang-William/pod-affinity/pkg/api/mutatingwebhook/pipelinerun_mutating_webhook"
+	"github.com/QuanZhang-William/pod-affinity/pkg/mutatingwebhook"
+	"github.com/QuanZhang-William/pod-affinity/pkg/mutatingwebhook/pipelinerun_mutating_webhook"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/sharedmain"
