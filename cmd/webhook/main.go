@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/QuanZhang-William/pod-affinity/pkg/api/mutatingwebhook"
+	"github.com/QuanZhang-William/pod-affinity/pkg/api/mutatingwebhook/pipelinerun_mutating_webhook"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/sharedmain"
@@ -28,10 +29,32 @@ func newMutatingAdmissionController(ctx context.Context, cmw configmap.Watcher) 
 	return mutatingwebhook.NewAdmissionController(ctx,
 
 		// Name of the resource webhook.
-		"mutation.webhook.pod-affinity.tekton.dev",
+		"pod.mutation.webhook.pod-affinity.tekton.dev",
 
 		// The path on which to serve the webhook.
 		"/mutating",
+
+		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
+		// Quan TODO: check if context func is fine
+		func(ctx context.Context) context.Context {
+			return ctx
+		},
+	)
+}
+
+func newPipelineRunMutatingAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+	//Quan TODO: check if watch config is needed
+	/*
+		store := defaultconfig.NewStore(logging.FromContext(ctx).Named("config-store"))
+		store.WatchConfigs(cmw)
+	*/
+	return pipelinerun_mutating_webhook.NewPipelineRunAdmissionController(ctx,
+
+		// Name of the resource webhook.
+		"pipelinerun.mutation.webhook.pod-affinity.tekton.dev",
+
+		// The path on which to serve the webhook.
+		"/pr-mutating",
 
 		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
 		// Quan TODO: check if context func is fine
@@ -66,5 +89,6 @@ func main() {
 	sharedmain.MainWithContext(ctx, "tekton-pod-affinity-webhook",
 		certificates.NewController,
 		newMutatingAdmissionController,
+		newPipelineRunMutatingAdmissionController,
 	)
 }
