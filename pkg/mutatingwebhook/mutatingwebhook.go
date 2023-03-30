@@ -3,11 +3,9 @@ package mutatingwebhook
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
-	"github.com/tektoncd/pipeline/pkg/workspace"
 	"go.uber.org/zap"
 	"gomodules.xyz/jsonpatch/v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -22,6 +20,7 @@ import (
 	"knative.dev/pkg/kmp"
 	"knative.dev/pkg/ptr"
 
+	"github.com/QuanZhang-William/pod-affinity/pkg/reconciler/podaffinity"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -223,7 +222,7 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1.AdmissionR
 
 	// mutate the pod only when it is created by a pipelinerun
 	if pr, found := pod.Labels["tekton.dev/pipelineRun"]; found {
-		mutatePodAffinity(ctx, &pod, pr)
+		podaffinity.MutatePodAffinity(ctx, &pod, pr)
 	}
 
 	// try patch a label for testing purpose
@@ -271,49 +270,4 @@ func generateJsonPatch(origin, target *corev1.Pod) []byte {
 	}
 
 	return bytes
-}
-
-func mutatePodAffinity(ctx context.Context, p *corev1.Pod, pipelineRunName string) {
-	if _, found := p.Annotations[workspace.AnnotationAffinityAssistantName]; found {
-		logger := logging.FromContext(ctx)
-		logger.Infof("exit mutatePodAffinity since Affinity Assistant exists")
-		return
-	}
-
-	// for now we assume the original pod has no pod affinity
-	if p.Spec.Affinity == nil {
-		p.Spec.Affinity = &corev1.Affinity{}
-	}
-
-	podAffinityName := getPodAffinityValue(pipelineRunName)
-	mergeAffinityWithAffinityAssistant(p.Spec.Affinity, podAffinityName)
-}
-
-func mergeAffinityWithAffinityAssistant(affinity *corev1.Affinity, podAffinityName string) {
-
-	podAffinityTerm := podAffinityTermUsingAffinityAssistant(podAffinityName)
-
-	if affinity.PodAffinity == nil {
-		affinity.PodAffinity = &corev1.PodAffinity{}
-	}
-
-	affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
-		append(affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution, *podAffinityTerm)
-}
-
-func podAffinityTermUsingAffinityAssistant(affinityAssistantName string) *corev1.PodAffinityTerm {
-	return &corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			workspace.LabelInstance: affinityAssistantName,
-			//workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
-		},
-	},
-		TopologyKey: "kubernetes.io/hostname",
-	}
-}
-
-func getPodAffinityValue(pipelineRunName string) string {
-	hashBytes := sha256.Sum256([]byte(pipelineRunName))
-	hashString := fmt.Sprintf("%x", hashBytes)
-	return fmt.Sprintf("%s-%s", "custom-pod-affinity", hashString[:10])
 }

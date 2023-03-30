@@ -89,7 +89,7 @@ func NewPipelineRunAdmissionController(
 	}
 
 	logger := logging.FromContext(ctx)
-	const queueName = "MutatingWebhook"
+	const queueName = "PRMutatingWebhook"
 	c := controller.NewContext(ctx, wh, controller.ControllerOptions{WorkQueueName: queueName, Logger: logger.Named(queueName)})
 
 	// Reconcile when the named MutatingWebhookConfiguration changes.
@@ -240,8 +240,32 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1.AdmissionR
 
 	logger.Infof("Quan Test, in pipeline run admission webhook, tekton.dev/custom-pod-affinity detected")
 
+	jp := []jsonpatch.JsonPatchOperation{
+		{
+			Operation: "add",
+			Path:      "/spec/status",
+			Value:     v1beta1.PipelineRunSpecStatusPending,
+		}}
+	logger.Infof("Quan Test pending status applied")
+
+	if pr.Spec.Status != v1beta1.PipelineRunSpecStatusPending {
+		jp = append(jp, jsonpatch.JsonPatchOperation{
+			Operation: "add",
+			Path:      "/metadata/labels/tekton.dev~1marked-pending-by-webhook",
+			Value:     "true",
+		})
+
+		logger.Infof("Quan Test marked-pending-by-webhook label applied")
+	}
+
+	patch, err := json.Marshal(jp)
+	if err != nil {
+		logger.Errorf("failed to marshal json patch: %v", err)
+		return nil
+	}
+
 	return &admissionv1.AdmissionResponse{
-		Patch:   pendPipelineRunPatchBytes,
+		Patch:   patch,
 		Allowed: true,
 		PatchType: func() *admissionv1.PatchType {
 			pt := admissionv1.PatchTypeJSONPatch

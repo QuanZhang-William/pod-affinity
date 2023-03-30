@@ -45,6 +45,9 @@ spec:
       containers:
         - name: custom-pod-affinity-controller
           image: ko://github.com/QuanZhang-William/pod-affinity/cmd/controller
+          args: [
+            "-nop-image", "ko://github.com/tektoncd/pipeline/cmd/nop",
+          ]
           env:
             - name: SYSTEM_NAMESPACE
               valueFrom:

@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pod-affinity
 rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
   # The webhook needs to be able to list and update customresourcedefinitions,
   # mainly to update the webhook certificates.
   - apiGroups: ["apiextensions.k8s.io"]
@@ -40,8 +43,14 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/part-of: tekton-pod-affinity
 rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
   - apiGroups: ["tekton.dev"]
-    resources: ["pipelineruns", "concurrencycontrols"]
+    resources: ["pipelineruns"]
+    verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns"]
     verbs: ["get", "list", "create", "update", "delete", "patch", "watch"]
   # Controller needs cluster access to leases for leader election.
   - apiGroups: ["coordination.k8s.io"]

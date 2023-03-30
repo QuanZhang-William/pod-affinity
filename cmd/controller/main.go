@@ -14,12 +14,18 @@ limitations under the License.
 package main
 
 import (
+	"flag"
+
 	"github.com/QuanZhang-William/pod-affinity/pkg/reconciler/podaffinity"
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline"
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/signals"
 )
 
 func main() {
 	//ctx := filteredinformerfactory.WithSelectors(signals.NewContext(), v1alpha1.ManagedByLabelKey)
-	sharedmain.MainWithContext(signals.NewContext(), podaffinity.ControllerName, podaffinity.NewController())
+	opts := &pipeline.Options{}
+	flag.StringVar(&opts.Images.NopImage, "nop-image", "", "The container image used to stop sidecars")
+
+	sharedmain.MainWithContext(signals.NewContext(), podaffinity.ControllerName, podaffinity.NewController(opts))
 }
