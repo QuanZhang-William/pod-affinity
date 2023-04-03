@@ -15,17 +15,19 @@ import (
 	"knative.dev/pkg/kmeta"
 )
 
-// SimpleAffinityAssistantStatefulSet has similar functionality to AffinityAssistantStatefulSet
+// SimplePlaceholderStatefulSet has similar functionality to PlaceholderStatefulSet
 // with no pod template or volume is applied to the placeholder SS
-func SimplePlaceholderStatefulSet(pr *v1beta1.PipelineRun, affinityAssistantImage string, useAntiPodAffinity bool) *appsv1.StatefulSet {
+// TODO: make use useAntiPodAffinity configurable
+func SimplePlaceholderStatefulSet(pr *v1beta1.PipelineRun, placeholderPodImage string, useAntiPodAffinity bool) *appsv1.StatefulSet {
 	// We want a singleton pod
 	replicas := int32(1)
 
+	// We do not use this for now
 	tpl := &pod.AffinityAssistantTemplate{}
 
 	containers := []corev1.Container{{
 		Name:  "affinity-assistant",
-		Image: affinityAssistantImage,
+		Image: placeholderPodImage,
 		Args:  []string{"tekton_run_indefinitely"},
 
 		// Set requests == limits to get QoS class _Guaranteed_.
@@ -81,9 +83,9 @@ func SimplePlaceholderStatefulSet(pr *v1beta1.PipelineRun, affinityAssistantImag
 	return placeholderSS
 }
 
-// AffinityAssistantStatefulSet is not currently being used as we need to figure out PV availability zone concern
+// PlaceholderStatefulSet is not currently being used as we need to figure out PV availability zone concern
 // TODO: check if we apply pipeline pod template to placeholder pod
-func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName string, affinityAssistantImage string, defaultAATpl *pod.AffinityAssistantTemplate, useAntiPodAffinity bool) *appsv1.StatefulSet {
+func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName string, placeholderPodImage string, defaultAATpl *pod.AffinityAssistantTemplate, useAntiPodAffinity bool) *appsv1.StatefulSet {
 	// We want a singleton pod
 	replicas := int32(1)
 
@@ -96,7 +98,7 @@ func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName stri
 
 	containers := []corev1.Container{{
 		Name:  "affinity-assistant",
-		Image: affinityAssistantImage,
+		Image: placeholderPodImage,
 		Args:  []string{"tekton_run_indefinitely"},
 
 		// Set requests == limits to get QoS class _Guaranteed_.
@@ -168,7 +170,7 @@ func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName stri
 	return placeholderSS
 }
 
-func getStatefulSetLabels(pr *v1beta1.PipelineRun, affinityAssistantName string) map[string]string {
+func getStatefulSetLabels(pr *v1beta1.PipelineRun, placeholderPodName string) map[string]string {
 	// Propagate labels from PipelineRun to StatefulSet.
 	labels := make(map[string]string, len(pr.ObjectMeta.Labels)+1)
 	for key, val := range pr.ObjectMeta.Labels {
@@ -176,39 +178,39 @@ func getStatefulSetLabels(pr *v1beta1.PipelineRun, affinityAssistantName string)
 	}
 	labels[pipeline.PipelineRunLabelKey] = pr.Name
 
-	// LabelInstance is used to configure PodAffinity for all TaskRuns belonging to this Affinity Assistant
-	// LabelComponent is used to configure PodAntiAffinity to other Affinity Assistants
-	labels[workspace.LabelInstance] = affinityAssistantName
-	labels[workspace.LabelComponent] = workspace.ComponentNameAffinityAssistant
+	// LabelInstance is used to configure PodAffinity for all TaskRuns belonging to this PipelineRun
+	// LabelComponent is used to configure PodAntiAffinity to other PipelineRun
+	labels[LabelInstance] = placeholderPodName
+	labels[LabelComponent] = ComponentNamePlaceholder
 	return labels
 }
 
 // getPlaceholderMergedWithPodTemplateRequiredAffinity return the affinity that merged with PipelineRun PodTemplate affinity (required).
 func getPlaceholderMergedWithPodTemplateRequiredAffinity(pr *v1beta1.PipelineRun) *corev1.Affinity {
 	// use podAntiAffinity to repel other affinity assistants
-	repelOtherAffinityAssistantsPodAffinityTerm := corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
+	repelOtherPlaceholderPodAffinityTerm := corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
+			workspace.LabelComponent: ComponentNamePlaceholder,
 		},
 	},
 		TopologyKey: "kubernetes.io/hostname",
 	}
 
-	affinityAssistantsAffinity := &corev1.Affinity{}
+	PlaceholderAffinity := &corev1.Affinity{}
 	if pr.Spec.PodTemplate != nil && pr.Spec.PodTemplate.Affinity != nil {
-		affinityAssistantsAffinity = pr.Spec.PodTemplate.Affinity
+		PlaceholderAffinity = pr.Spec.PodTemplate.Affinity
 	}
-	if affinityAssistantsAffinity.PodAntiAffinity == nil {
-		affinityAssistantsAffinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
+	if PlaceholderAffinity.PodAntiAffinity == nil {
+		PlaceholderAffinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
 	}
 
 	// we use RequiredDuringSchedulingIgnoredDuringExecution to enforce repeling other placeholder pods here;
 	// we use PreferedDuringSchedulingIgnoredDuringExecution in Tekton Pipelines
-	affinityAssistantsAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
-		append(affinityAssistantsAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
-			repelOtherAffinityAssistantsPodAffinityTerm)
+	PlaceholderAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
+		append(PlaceholderAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			repelOtherPlaceholderPodAffinityTerm)
 
-	return affinityAssistantsAffinity
+	return PlaceholderAffinity
 }
 
 func getPodAffinityValue(pipelineRunName string) string {

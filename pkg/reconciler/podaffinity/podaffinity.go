@@ -26,6 +26,15 @@ type Reconciler struct {
 	Images            pipeline.Images
 }
 
+const (
+	// LabelInstance is used in combination with LabelComponent to configure PodAffinity for TaskRun pods
+	LabelInstance = "app.kubernetes.io/instance"
+	// LabelComponent is used to configure PodAntiAffinity to other PipelineRuns
+	LabelComponent = "app.kubernetes.io/component"
+	// ComponentNamePlaceholder is the component name for the placeholder pod
+	ComponentNamePlaceholder = "placeholder"
+)
+
 func customPodAffinityRequired(pr *v1beta1.PipelineRun) bool {
 	// if this PR is not intended for pod affinity experiment, ignore
 	if _, found := pr.Labels["tekton.dev/custom-pod-affinity"]; !found {

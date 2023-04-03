@@ -16,25 +16,21 @@ func MutatePodAffinity(ctx context.Context, p *corev1.Pod, pipelineRunName strin
 	}
 
 	podAffinityName := getPodAffinityValue(pipelineRunName)
-	mergeAffinityWithAffinityAssistant(p.Spec.Affinity, podAffinityName)
-}
+	podAffinityTerm := podAffinityTermUsingPlaceholderPod(podAffinityName)
 
-func mergeAffinityWithAffinityAssistant(affinity *corev1.Affinity, podAffinityName string) {
-	podAffinityTerm := podAffinityTermUsingAffinityAssistant(podAffinityName)
-
+	affinity := p.Spec.Affinity
 	if affinity.PodAffinity == nil {
 		affinity.PodAffinity = &corev1.PodAffinity{}
 	}
-
 	affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
 		append(affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution, *podAffinityTerm)
 }
 
-func podAffinityTermUsingAffinityAssistant(affinityAssistantName string) *corev1.PodAffinityTerm {
+func podAffinityTermUsingPlaceholderPod(placeholderPodName string) *corev1.PodAffinityTerm {
 	return &corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			workspace.LabelInstance:  affinityAssistantName,
-			workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
+			workspace.LabelInstance:  placeholderPodName,
+			workspace.LabelComponent: ComponentNamePlaceholder,
 		},
 	},
 		TopologyKey: "kubernetes.io/hostname",
