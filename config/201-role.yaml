@@ -18,7 +18,7 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["list", "watch"]
-  # The webhook daemon makes a reconciliation loop on tekton-concurrency-webhook-certs. Whenever
+  # The webhook daemon makes a reconciliation loop on tekton-pod-affinity-webhook-certs. Whenever
   # the secret changes it updates the webhook configurations with the certificates
   # stored in the secret.
   - apiGroups: [""]

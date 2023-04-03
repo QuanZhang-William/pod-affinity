@@ -25,8 +25,6 @@ func NewController(opts *pipeline.Options) func(ctx context.Context, cmw configm
 		pipelineClientSet := pipelineclient.Get(ctx)
 		pipelineRunInformer := pipelineruninformer.Get(ctx)
 
-		/*configStore := config.NewStore(logger.Named("config-store"))
-		configStore.WatchConfigs(cmw)*/
 		r := &Reconciler{
 			PipelineRunLister: pipelineRunInformer.Lister(),
 			PipelineClientSet: pipelineClientSet,
@@ -38,7 +36,6 @@ func NewController(opts *pipeline.Options) func(ctx context.Context, cmw configm
 			return controller.Options{
 				AgentName:         ControllerName,
 				SkipStatusUpdates: true, // Don't update PipelineRun status. This is the responsibility of Tekton Pipelines
-				//ConfigStore:       configStore,
 			}
 		})
 

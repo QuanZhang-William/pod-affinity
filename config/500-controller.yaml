@@ -59,4 +59,4 @@ spec:
             - name: CONFIG_LOGGING_NAME
               value: config-logging
             - name: METRICS_DOMAIN
-              value: experimental.tekton.dev/concurrency
+              value: experimental.tekton.dev/tekton-pod-affinity

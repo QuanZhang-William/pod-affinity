@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// MutatePodAffinity applies the pod affinity terms based on the PipelineRun name
 func MutatePodAffinity(ctx context.Context, p *corev1.Pod, pipelineRunName string) {
 	// for now we assume the original pod has no pod affinity
 	if p.Spec.Affinity == nil {
@@ -19,7 +20,6 @@ func MutatePodAffinity(ctx context.Context, p *corev1.Pod, pipelineRunName strin
 }
 
 func mergeAffinityWithAffinityAssistant(affinity *corev1.Affinity, podAffinityName string) {
-
 	podAffinityTerm := podAffinityTermUsingAffinityAssistant(podAffinityName)
 
 	if affinity.PodAffinity == nil {

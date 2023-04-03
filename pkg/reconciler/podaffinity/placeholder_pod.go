@@ -15,17 +15,13 @@ import (
 	"knative.dev/pkg/kmeta"
 )
 
-// SimpleAffinityAssistantStatefulSet assume there is no PVC used in the pipelinerun
-func SimpleAffinityAssistantStatefulSet(pr *v1beta1.PipelineRun, affinityAssistantImage string, useAntiPodAffinity bool) *appsv1.StatefulSet {
+// SimpleAffinityAssistantStatefulSet has similar functionality to AffinityAssistantStatefulSet
+// with no pod template or volume is applied to the placeholder SS
+func SimplePlaceholderStatefulSet(pr *v1beta1.PipelineRun, affinityAssistantImage string, useAntiPodAffinity bool) *appsv1.StatefulSet {
 	// We want a singleton pod
 	replicas := int32(1)
 
 	tpl := &pod.AffinityAssistantTemplate{}
-	// merge pod template from spec and default if any of them are defined
-
-	/*if pr.Spec.PodTemplate != nil || defaultAATpl != nil {
-		tpl = pod.MergeAAPodTemplateWithDefault(pr.Spec.PodTemplate.ToAffinityAssistantTemplate(), defaultAATpl)
-	}*/
 
 	containers := []corev1.Container{{
 		Name:  "affinity-assistant",
@@ -73,38 +69,21 @@ func SimpleAffinityAssistantStatefulSet(pr *v1beta1.PipelineRun, affinityAssista
 					Tolerations:      tpl.Tolerations,
 					NodeSelector:     tpl.NodeSelector,
 					ImagePullSecrets: tpl.ImagePullSecrets,
-
-					// Skip volumes for now
-					//Affinity: getAssistantAffinityMergedWithPodTemplateAffinity(pr),
-					/*Volumes: []corev1.Volume{{
-						Name: "workspace",
-						VolumeSource: corev1.VolumeSource{
-							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-								// A Pod mounting a PersistentVolumeClaim that has a StorageClass with
-								// volumeBindingMode: Immediate
-								// the PV is allocated on a Node first, and then the pod need to be
-								// scheduled to that node.
-								// To support those PVCs, the Affinity Assistant must also mount the
-								// same PersistentVolumeClaim - to be sure that the Affinity Assistant
-								// pod is scheduled to the same Availability Zone as the PV, when using
-								// a regional cluster. This is called VolumeScheduling.
-								//ClaimName: claimName,
-							}},
-					}},*/
 				},
 			},
 		},
 	}
 
 	if useAntiPodAffinity {
-		placeholderSS.Spec.Template.Spec.Affinity = getAssistantAffinityMergedWithPodTemplateAffinity(pr)
+		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateAffinity(pr)
 	}
 
 	return placeholderSS
 }
 
+// AffinityAssistantStatefulSet is not currently being used as we need to figure out PV availability zone concern
 // TODO: check if we apply pipeline pod template to placeholder pod
-func AffinityAssistantStatefulSet(name string, pr *v1beta1.PipelineRun, claimName string, affinityAssistantImage string, defaultAATpl *pod.AffinityAssistantTemplate, useAntiPodAffinity bool) *appsv1.StatefulSet {
+func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName string, affinityAssistantImage string, defaultAATpl *pod.AffinityAssistantTemplate, useAntiPodAffinity bool) *appsv1.StatefulSet {
 	// We want a singleton pod
 	replicas := int32(1)
 
@@ -161,8 +140,8 @@ func AffinityAssistantStatefulSet(name string, pr *v1beta1.PipelineRun, claimNam
 					NodeSelector:     tpl.NodeSelector,
 					ImagePullSecrets: tpl.ImagePullSecrets,
 
-					//Affinity: getAssistantAffinityMergedWithPodTemplateAffinity(pr),
-					/*Volumes: []corev1.Volume{{
+					Affinity: getPlaceholderMergedWithPodTemplateAffinity(pr),
+					Volumes: []corev1.Volume{{
 						Name: "workspace",
 						VolumeSource: corev1.VolumeSource{
 							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -176,14 +155,14 @@ func AffinityAssistantStatefulSet(name string, pr *v1beta1.PipelineRun, claimNam
 								// a regional cluster. This is called VolumeScheduling.
 								ClaimName: claimName,
 							}},
-					}},*/
+					}},
 				},
 			},
 		},
 	}
 
 	if useAntiPodAffinity {
-		placeholderSS.Spec.Template.Spec.Affinity = getAssistantAffinityMergedWithPodTemplateAffinity(pr)
+		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateAffinity(pr)
 	}
 
 	return placeholderSS
@@ -205,7 +184,7 @@ func getStatefulSetLabels(pr *v1beta1.PipelineRun, affinityAssistantName string)
 }
 
 // getAssistantAffinityMergedWithPodTemplateAffinity return the affinity that merged with PipelineRun PodTemplate affinity.
-func getAssistantAffinityMergedWithPodTemplateAffinity(pr *v1beta1.PipelineRun) *corev1.Affinity {
+func getPlaceholderMergedWithPodTemplateAffinity(pr *v1beta1.PipelineRun) *corev1.Affinity {
 	// use podAntiAffinity to repel other affinity assistants
 	repelOtherAffinityAssistantsPodAffinityTerm := corev1.WeightedPodAffinityTerm{
 		Weight: 100,

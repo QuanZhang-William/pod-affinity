@@ -1,12 +1,11 @@
-package pipelinerun_mutating_webhook
+package pod_mutatingwebhook
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"go.uber.org/zap"
 	"gomodules.xyz/jsonpatch/v2"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -21,6 +20,7 @@ import (
 	"knative.dev/pkg/kmp"
 	"knative.dev/pkg/ptr"
 
+	"github.com/QuanZhang-William/pod-affinity/pkg/reconciler/podaffinity"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,31 +34,13 @@ import (
 	certresources "knative.dev/pkg/webhook/certificates/resources"
 )
 
-const (
-// PodAffinityName = "one-worker/custom-affinity"
-)
-
 var (
-	scheme                    = runtime.NewScheme()
-	codecs                    = serializer.NewCodecFactory(scheme)
-	pendPipelineRunPatchBytes []byte
+	scheme = runtime.NewScheme()
+	codecs = serializer.NewCodecFactory(scheme)
 )
-
-func init() {
-	var err error
-	pendPipelineRunPatchBytes, err = json.Marshal([]jsonpatch.JsonPatchOperation{
-		{
-			Operation: "add",
-			Path:      "/spec/status",
-			Value:     v1beta1.PipelineRunSpecStatusPending,
-		}})
-	if err != nil {
-		log.Fatalf("failed to marshal PipelineRun patch bytes: %v", err)
-	}
-}
 
 // NewAdmissionController constructs a reconciler
-func NewPipelineRunAdmissionController(
+func NewAdmissionController(
 	ctx context.Context,
 	name, path string,
 	wc func(context.Context) context.Context,
@@ -89,7 +71,7 @@ func NewPipelineRunAdmissionController(
 	}
 
 	logger := logging.FromContext(ctx)
-	const queueName = "PRMutatingWebhook"
+	const queueName = "PodMutatingWebhook"
 	c := controller.NewContext(ctx, wh, controller.ControllerOptions{WorkQueueName: queueName, Logger: logger.Named(queueName)})
 
 	// Reconcile when the named MutatingWebhookConfiguration changes.
@@ -158,9 +140,9 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 			admissionregistrationv1.Create,
 		},
 		Rule: admissionregistrationv1.Rule{
-			APIGroups:   []string{"tekton.dev"},
-			APIVersions: []string{"v1beta1"},
-			Resources:   []string{"pipelineruns"},
+			APIGroups:   []string{""},
+			APIVersions: []string{"v1"},
+			Resources:   []string{"pods"},
 		},
 	}}
 
@@ -219,53 +201,34 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 }
 
 // Admit implements AdmissionController
-// This Admit function marks the pr as pending status
+// The pod Admit function applies the pod affinity terms to the pod so that it can be anchored to the placeholder pod
 func (ac *reconciler) Admit(ctx context.Context, request *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
 	if ac.withContext != nil {
 		ctx = ac.withContext(ctx)
 	}
 
 	logger := logging.FromContext(ctx)
-	logger.Infof("Quan Test, in pipeline run admission webhook")
+	logger.Infof("Quan Test, in admission webhook, request is: %v \n", request)
 
-	// convert the admission request to a pipeline run
-	gvkPr := v1beta1.SchemeGroupVersion.WithKind("PipelineRun")
-	var pr v1beta1.PipelineRun
-	codecs.UniversalDeserializer().Decode(request.Object.Raw, &gvkPr, &pr)
+	// convert the admission request to a pod
+	gvkPod := corev1.SchemeGroupVersion.WithKind("Pod")
+	var pod corev1.Pod
+	codecs.UniversalDeserializer().Decode(request.Object.Raw, &gvkPod, &pod)
 
-	// mutate the pipeline run only when it is created by the custom pod affinity experiment
-	if _, found := pr.Labels["tekton.dev/custom-pod-affinity"]; !found {
+	// mutate the pod only when it is created by a pipelinerun with "tekton.dev/custom-pod-affinity" label
+	_, paLabelFound := pod.Labels["tekton.dev/custom-pod-affinity"]
+	pr, prLabelFound := pod.Labels["tekton.dev/pipelineRun"]
+	if !paLabelFound || !prLabelFound {
+		logger.Errorf("Pod is not created by a pipelinerun with tekton.dev/custom-pod-affinity label")
 		return &admissionv1.AdmissionResponse{Allowed: true}
 	}
 
-	logger.Infof("Quan Test, in pipeline run admission webhook, tekton.dev/custom-pod-affinity detected")
-
-	jp := []jsonpatch.JsonPatchOperation{
-		{
-			Operation: "add",
-			Path:      "/spec/status",
-			Value:     v1beta1.PipelineRunSpecStatusPending,
-		}}
-	logger.Infof("Quan Test pending status applied")
-
-	if pr.Spec.Status != v1beta1.PipelineRunSpecStatusPending {
-		jp = append(jp, jsonpatch.JsonPatchOperation{
-			Operation: "add",
-			Path:      "/metadata/labels/tekton.dev~1marked-pending-by-webhook",
-			Value:     "true",
-		})
-
-		logger.Infof("Quan Test marked-pending-by-webhook label applied")
-	}
-
-	patch, err := json.Marshal(jp)
-	if err != nil {
-		logger.Errorf("failed to marshal json patch: %v", err)
-		return nil
-	}
+	originPod := pod.DeepCopy()
+	podaffinity.MutatePodAffinity(ctx, &pod, pr)
+	jp := generateJsonPatch(originPod, &pod)
 
 	return &admissionv1.AdmissionResponse{
-		Patch:   patch,
+		Patch:   jp,
 		Allowed: true,
 		PatchType: func() *admissionv1.PatchType {
 			pt := admissionv1.PatchTypeJSONPatch
@@ -281,4 +244,24 @@ func (ac *reconciler) Path() string {
 
 func ptrReinvocationPolicyType(r admissionregistrationv1.ReinvocationPolicyType) *admissionregistrationv1.ReinvocationPolicyType {
 	return &r
+}
+
+func generateJsonPatch(origin, target *corev1.Pod) []byte {
+	targetBytes := new(bytes.Buffer)
+	json.NewEncoder(targetBytes).Encode(target)
+
+	originBytes := new(bytes.Buffer)
+	json.NewEncoder(originBytes).Encode(origin)
+
+	patch, e := jsonpatch.CreatePatch(originBytes.Bytes(), targetBytes.Bytes())
+	if e != nil {
+		fmt.Printf("error: %v", e)
+	}
+
+	bytes, err := json.Marshal(patch)
+	if err != nil {
+		fmt.Printf("error marshalling patch: %v", err)
+	}
+
+	return bytes
 }

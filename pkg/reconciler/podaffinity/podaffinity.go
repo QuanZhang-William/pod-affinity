@@ -32,32 +32,34 @@ func customPodAffinityRequired(pr *v1beta1.PipelineRun) bool {
 		return false
 	}
 
-	if _, found := pr.Labels["tekton.dev/marked-pending-by-webhook"]; found && pr.Spec.Status == v1beta1.PipelineRunSpecStatusPending {
-		return true
+	// if not in pending status or the pending status is not marked by the custom webhook, ignore
+	if _, found := pr.Labels["tekton.dev/marked-pending-by-webhook"]; !found || pr.Spec.Status != v1beta1.PipelineRunSpecStatusPending {
+		return false
 	}
 
-	return false
+	return true
 }
 
+// ReconcileKind removes the tekton.dev/marked-pending-by-webhook label and cancel the pending status of PR
 func (r *Reconciler) ReconcileKind(ctx context.Context, pr *v1beta1.PipelineRun) pkgreconciler.Event {
 	logger := logging.FromContext(ctx)
 
-	logger.Infof("Quan Test: The pipeline run reconciler triggered, namespace: %v, name: %v", pr.Namespace, pr.Name)
+	logger.Infof(" The pipeline run reconciler triggered, namespace: %v, name: %v", pr.Namespace, pr.Name)
 
 	name := getPodAffinityValue(pr.Name)
 	if pr.IsDone() {
 		// clean placeholder statefulset
 		if err := r.KubeClientSet.AppsV1().StatefulSets(pr.Namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			logger.Errorf("Quan Test clean up placeholder ss failed: %v", err)
+			logger.Errorf("Clean up placeholder SS failed: %v", err)
 			return err
 		}
 
-		logger.Infof("Quan Test, statefulset delete properly")
+		logger.Infof("Statefulset delete properly")
 		return nil
 	}
 
 	if !customPodAffinityRequired(pr) {
-		logger.Infof("Quan Test: reconcile skipped for pr: %v, status: %v", pr.Name, pr.Spec.Status)
+		logger.Infof("Reconcile skipped for pr: %v, status: %v", pr.Name, pr.Spec.Status)
 		return nil
 	}
 
@@ -78,13 +80,13 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, pr *v1beta1.PipelineRun)
 	_, err := r.KubeClientSet.AppsV1().StatefulSets(pr.Namespace).Get(ctx, name, metav1.GetOptions{})
 	switch {
 	case apierrors.IsNotFound(err):
-		podAffinitySS := SimpleAffinityAssistantStatefulSet(pr, r.Images.NopImage, false)
+		podAffinitySS := SimplePlaceholderStatefulSet(pr, r.Images.NopImage, false)
 		_, err := r.KubeClientSet.AppsV1().StatefulSets(pr.Namespace).Create(ctx, podAffinitySS, metav1.CreateOptions{})
 		if err != nil {
 			logger.Fatalf("Failed to create StateulSet: %v", err)
 		}
 		if err == nil {
-			logger.Infof("Quan Test Created StatefulSet %s in namespace %s", name, pr.Namespace)
+			logger.Infof("Created StatefulSet %s in namespace %s", name, pr.Namespace)
 		}
 	case err != nil:
 		logger.Fatalf("Failed to get StateulSet: %v", err)
@@ -110,6 +112,6 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, pr *v1beta1.PipelineRun)
 		newPR.Spec.Status = ""
 	}
 	_, err = r.PipelineClientSet.TektonV1beta1().PipelineRuns(pr.Namespace).Update(ctx, newPR, metav1.UpdateOptions{})
-	logger.Infof("Quan Test: marked-pending-by-webhook canceled and pending status canceled")
+	logger.Infof("marked-pending-by-webhook canceled and pending status canceled")
 	return err
 }

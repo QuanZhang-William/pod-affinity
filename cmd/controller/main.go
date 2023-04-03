@@ -23,7 +23,6 @@ import (
 )
 
 func main() {
-	//ctx := filteredinformerfactory.WithSelectors(signals.NewContext(), v1alpha1.ManagedByLabelKey)
 	opts := &pipeline.Options{}
 	flag.StringVar(&opts.Images.NopImage, "nop-image", "", "The container image used to stop sidecars")
 
