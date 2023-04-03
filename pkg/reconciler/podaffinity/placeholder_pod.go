@@ -75,7 +75,7 @@ func SimplePlaceholderStatefulSet(pr *v1beta1.PipelineRun, affinityAssistantImag
 	}
 
 	if useAntiPodAffinity {
-		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateAffinity(pr)
+		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateRequiredAffinity(pr)
 	}
 
 	return placeholderSS
@@ -140,7 +140,7 @@ func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName stri
 					NodeSelector:     tpl.NodeSelector,
 					ImagePullSecrets: tpl.ImagePullSecrets,
 
-					Affinity: getPlaceholderMergedWithPodTemplateAffinity(pr),
+					Affinity: getPlaceholderMergedWithPodTemplateRequiredAffinity(pr),
 					Volumes: []corev1.Volume{{
 						Name: "workspace",
 						VolumeSource: corev1.VolumeSource{
@@ -162,7 +162,7 @@ func PlaceholderStatefulSet(name string, pr *v1beta1.PipelineRun, claimName stri
 	}
 
 	if useAntiPodAffinity {
-		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateAffinity(pr)
+		placeholderSS.Spec.Template.Spec.Affinity = getPlaceholderMergedWithPodTemplateRequiredAffinity(pr)
 	}
 
 	return placeholderSS
@@ -179,23 +179,19 @@ func getStatefulSetLabels(pr *v1beta1.PipelineRun, affinityAssistantName string)
 	// LabelInstance is used to configure PodAffinity for all TaskRuns belonging to this Affinity Assistant
 	// LabelComponent is used to configure PodAntiAffinity to other Affinity Assistants
 	labels[workspace.LabelInstance] = affinityAssistantName
-	//labels[workspace.LabelComponent] = workspace.ComponentNameAffinityAssistant
+	labels[workspace.LabelComponent] = workspace.ComponentNameAffinityAssistant
 	return labels
 }
 
-// getAssistantAffinityMergedWithPodTemplateAffinity return the affinity that merged with PipelineRun PodTemplate affinity.
-func getPlaceholderMergedWithPodTemplateAffinity(pr *v1beta1.PipelineRun) *corev1.Affinity {
+// getPlaceholderMergedWithPodTemplateRequiredAffinity return the affinity that merged with PipelineRun PodTemplate affinity (required).
+func getPlaceholderMergedWithPodTemplateRequiredAffinity(pr *v1beta1.PipelineRun) *corev1.Affinity {
 	// use podAntiAffinity to repel other affinity assistants
-	repelOtherAffinityAssistantsPodAffinityTerm := corev1.WeightedPodAffinityTerm{
-		Weight: 100,
-		PodAffinityTerm: corev1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
-				},
-			},
-			TopologyKey: "kubernetes.io/hostname",
+	repelOtherAffinityAssistantsPodAffinityTerm := corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
 		},
+	},
+		TopologyKey: "kubernetes.io/hostname",
 	}
 
 	affinityAssistantsAffinity := &corev1.Affinity{}
@@ -205,8 +201,11 @@ func getPlaceholderMergedWithPodTemplateAffinity(pr *v1beta1.PipelineRun) *corev
 	if affinityAssistantsAffinity.PodAntiAffinity == nil {
 		affinityAssistantsAffinity.PodAntiAffinity = &corev1.PodAntiAffinity{}
 	}
-	affinityAssistantsAffinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution =
-		append(affinityAssistantsAffinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+
+	// we use RequiredDuringSchedulingIgnoredDuringExecution to enforce repeling other placeholder pods here;
+	// we use PreferedDuringSchedulingIgnoredDuringExecution in Tekton Pipelines
+	affinityAssistantsAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
+		append(affinityAssistantsAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
 			repelOtherAffinityAssistantsPodAffinityTerm)
 
 	return affinityAssistantsAffinity

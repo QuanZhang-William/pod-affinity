@@ -33,8 +33,8 @@ func mergeAffinityWithAffinityAssistant(affinity *corev1.Affinity, podAffinityNa
 func podAffinityTermUsingAffinityAssistant(affinityAssistantName string) *corev1.PodAffinityTerm {
 	return &corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			workspace.LabelInstance: affinityAssistantName,
-			//workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
+			workspace.LabelInstance:  affinityAssistantName,
+			workspace.LabelComponent: workspace.ComponentNameAffinityAssistant,
 		},
 	},
 		TopologyKey: "kubernetes.io/hostname",

@@ -218,7 +218,9 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1.AdmissionR
 	// mutate the pod only when it is created by a pipelinerun with "tekton.dev/custom-pod-affinity" label
 	_, paLabelFound := pod.Labels["tekton.dev/custom-pod-affinity"]
 	pr, prLabelFound := pod.Labels["tekton.dev/pipelineRun"]
-	if !paLabelFound || !prLabelFound {
+	_, placeholderLabelFound := pod.Labels["statefulset.kubernetes.io/pod-name"]
+
+	if !paLabelFound || !prLabelFound || placeholderLabelFound {
 		logger.Errorf("Pod is not created by a pipelinerun with tekton.dev/custom-pod-affinity label")
 		return &admissionv1.AdmissionResponse{Allowed: true}
 	}

@@ -80,7 +80,7 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, pr *v1beta1.PipelineRun)
 	_, err := r.KubeClientSet.AppsV1().StatefulSets(pr.Namespace).Get(ctx, name, metav1.GetOptions{})
 	switch {
 	case apierrors.IsNotFound(err):
-		podAffinitySS := SimplePlaceholderStatefulSet(pr, r.Images.NopImage, false)
+		podAffinitySS := SimplePlaceholderStatefulSet(pr, r.Images.NopImage, true)
 		_, err := r.KubeClientSet.AppsV1().StatefulSets(pr.Namespace).Create(ctx, podAffinitySS, metav1.CreateOptions{})
 		if err != nil {
 			logger.Fatalf("Failed to create StateulSet: %v", err)
