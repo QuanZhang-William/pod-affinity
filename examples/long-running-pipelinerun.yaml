@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: long-running-demo-pipelinerun-
+  labels:
+    tekton.dev/custom-pod-affinity: "true"
+spec:
+  pipelineRef:
+    name: long-running-demo-pipeline

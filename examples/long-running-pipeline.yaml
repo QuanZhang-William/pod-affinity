@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: long-running-demo-pipeline
+spec:
+  tasks:
+    - name: sleep
+      taskSpec:
+        steps:
+        - image: bash:latest
+          script: sleep 120s

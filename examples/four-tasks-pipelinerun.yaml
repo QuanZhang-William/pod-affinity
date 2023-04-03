@@ -1,0 +1,9 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: demo-pipeline-four-tasks
+  labels:
+    tekton.dev/custom-pod-affinity: "true"
+spec:
+  pipelineRef:
+    name: demo-pipeline
