@@ -26,7 +26,7 @@ Please see more details about [PV availabity zone](https://kubernetes.io/docs/re
 To use this feature, please add a label `tekton.dev/custom-pod-affinity: "true"` to your PipelineRun.
 
 ## How it works
-In this prototype, the "one worker per PipelineRun" feature is implemented by [K8s Pod Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity). 
+In this prototype, the "one Node per PipelineRun" feature is implemented by [K8s Pod Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity). 
 This prototype contains 3 parts:
 
 ### PipelineRun Webhook
@@ -41,7 +41,7 @@ The PipelineRun controller also cleans up the placeholder StatefulSet when a Pip
 
 ### Pod Webhook
 A separate Pod mutatin webhook is used to add Pod affinity terms (based on PipelineRun name) to all the pods Created by a PipelineRun, 
-so that all the pods are anchored to the placeholder SS to acheive "one worker per PipelineRun" feature
+so that all the pods are anchored to the placeholder SS to acheive "one Node per PipelineRun" feature
 
 ## Examples
 List out all the nodes:
