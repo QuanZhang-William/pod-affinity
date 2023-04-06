@@ -13,6 +13,16 @@ Build and install from source with [ko](https://ko.build/):
 ko apply -f config
 ```
 
+Set a StorageClass with `WaitForFirstConsumer` VolumeBindingMode [as default](https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/) to avoid availability zone scheduling conflict by running: 
+
+```sh
+ kubectl patch storageclass custom -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+Please see more details about [PV availabity zone](https://kubernetes.io/docs/reference/labels-annotations-taints/#topologykubernetesiozone) and
+[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+
+
 To use this feature, please add a label `tekton.dev/custom-pod-affinity: "true"` to your PipelineRun.
 
 ## How it works

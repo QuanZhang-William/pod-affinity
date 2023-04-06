@@ -1,0 +1,83 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: pipelinerun-with-workspace
+  labels:
+    tekton.dev/custom-pod-affinity: "true"
+spec:
+  workspaces:
+  - name: ws1
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Mi
+  - name: ws2
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Mi
+  - name: ws3
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Mi
+  - name: ws4
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Mi
+  pipelineSpec:
+    workspaces:
+    - name: ws1
+    - name: ws2
+    - name: ws3
+    - name: ws4
+    tasks:
+    - name: first
+      taskSpec:
+        workspaces:
+        - name: ws1
+        steps:
+        - image: busybox
+          script: echo hello from first task
+      workspaces:
+      - name: ws1
+    - name: second
+      taskSpec:
+        workspaces:
+        - name: ws2
+        steps:
+        - image: busybox
+          script: echo hello from first task
+      workspaces:
+      - name: ws2
+    - name: third
+      taskSpec:
+        workspaces:
+        - name: ws3
+        steps:
+        - image: busybox
+          script: echo hello from first task
+      workspaces:
+      - name: ws3
+    - name: fourth
+      taskSpec:
+        workspaces:
+        - name: ws4
+        steps:
+        - image: busybox
+          script: echo hello from first task
+      workspaces:
+      - name: ws4
